@@ -15,6 +15,9 @@
     <ClCompile Include="..\..\src\WGL_ARB_multisample.cpp" />
     <ClCompile Include="..\..\src\wineyes3d.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\README.md" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{F12E13AA-9AB9-4FB1-9892-49CC361413B4}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
