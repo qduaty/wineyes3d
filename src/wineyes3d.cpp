@@ -1,5 +1,7 @@
-﻿// transparent OpenGL window
-// https://stackoverflow.com/questions/4052940/how-to-make-an-opengl-rendering-context-with-transparent-background/12290229#12290229?newreg=e50c2f448eae4c3f8ee2ae32925d0fa0
+﻿// GPL v3
+// part of: wineyes3d
+
+// transparent OpenGL window based on https://stackoverflow.com/questions/4052940/how-to-make-an-opengl-rendering-context-with-transparent-background/12290229#12290229?newreg=e50c2f448eae4c3f8ee2ae32925d0fa0
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -17,35 +19,53 @@
 #pragma comment (lib, "opengl32.lib")
 #pragma comment (lib, "glu32.lib")
 
-#ifdef  assert
-#define verify(expr) if(!expr) assert(0)
-#else verify(expr) expr
-#endif
-
-const TCHAR szAppName[]=_T("TransparentGL");
-const TCHAR wcWndName[]=_T("TransparentGL");
-
 HDC hDC;            
 HGLRC m_hrc;        
 POINT mousePos;
 
-#if 0
 int w = 150;
 int h = 100;
-int winx = 1750;
-int winy = 25;
-float opacity = 0.75f;
-#else
-int w = 63;
-int h = 45;
-int winx = 1600;
-int winy = 1035;
+int winx = 0;
+int winy = 0;
 float opacity = 1.0f;
-#endif
-GLuint vbo = 0;
 
-// make window always on top
-// modified from http://www.codeguru.com/cpp/w-d/dislog/article.php/c1857/Making-a-Window-Always-On-Top.htm
+/// registry functions from: https://genesisdatabase.wordpress.com/2010/10/12/reading-and-writing-registry-in-windows-using-winapi/
+/// eg. GetKeyData(HKEY_LOCAL_MACHINE, “Software\\Microsoft\\Windows\\CurrentVersion\\Run”, “ApplicationName”, storeHere, strlen(storeHere));
+int GetKeyData(HKEY hRootKey, char *subKey, char *value, LPBYTE data, DWORD cbData)
+{
+    HKEY hKey;
+    if(RegOpenKeyEx(hRootKey, subKey, 0, KEY_QUERY_VALUE, &hKey) != ERROR_SUCCESS)
+        return 0;
+ 
+    if(RegQueryValueEx(hKey, value, NULL, NULL, data, &cbData) != ERROR_SUCCESS)
+    {
+        RegCloseKey(hKey);
+        return 0;
+    }
+ 
+    RegCloseKey(hKey);
+    return 1;
+}
+
+/// eg. SetKeyData(HKEY_LOCAL_MACHINE, “Software\\Microsoft\\Windows\\CurrentVersion\\Run”, REG_SZ, “ApplicationName”, “C:\\ApplicationPath\\ApplicationName.exe”, strlen(“C:\\ApplicationPath\\ApplicationName.exe”));
+int SetKeyData(HKEY hRootKey, char *subKey, DWORD dwType, char *value, LPBYTE data, DWORD cbData)
+{
+    HKEY hKey;
+    if(RegCreateKey(hRootKey, subKey, &hKey) != ERROR_SUCCESS)
+        return 0;
+ 
+    if(RegSetValueEx(hKey, value, 0, dwType, data, cbData) != ERROR_SUCCESS)
+    {
+        RegCloseKey(hKey);
+        return 0;
+    }
+ 
+    RegCloseKey(hKey);
+    return 1;
+}
+
+/// make window always on top
+/// based on http://www.codeguru.com/cpp/w-d/dislog/article.php/c1857/Making-a-Window-Always-On-Top.htm
 void StayOnTop(HWND m_hWnd)
 {	
     RECT rect;
@@ -64,12 +84,13 @@ void StayOnTop(HWND m_hWnd)
                 );
 }
 
-const int npoints = max(4, (w + h) / 3);
-const float DEG2RAD = 2 * M_PI / (npoints - 1);
+int npoints;
+float DEG2RAD;
 const float radiusX = 0.5f;
 const float radiusY = 1.0f;
 
 BOOL initSC() {
+#if 0 // useful stuff for transparency
     glEnable(GL_ALPHA_TEST);        
     glEnable(GL_DEPTH_TEST);        
     glEnable(GL_COLOR_MATERIAL);
@@ -79,48 +100,23 @@ BOOL initSC() {
 
     glEnable(GL_BLEND);             
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+#endif
     glClearColor(0, 0, 0, 0);
-
-    // generate data and store in a buffer
-    if(!vbo)
-    {
-        glGenBuffersARB(1, &vbo);
-        glBindBufferARB(GL_ARRAY_BUFFER_ARB, vbo);
-    }
-
-    struct vertex {
-        float x,y,z;
-        float r,g,b,a;
-        vertex(float x,float y,float z, float r,float g,float b,float a):x(x),y(y),z(z),r(r),g(g),b(b),a(a){}
-        vertex(){}
-    };
-
-    int nsmallpoints = 100;
-    auto vertices = new vertex[nsmallpoints + npoints * 2];
-    int index = 0;
-
-    vertices[index++] = vertex(0, 0, -1.0f, 0, 0, 0, opacity);
-
-    for(int i = 0; i < nsmallpoints; i++)
-    {
-        float rad = i * 2 * M_PI / nsmallpoints;
-        vertices[index++] = vertex(cos(rad)*radiusX * 0.15, sin(rad) * radiusY * 0.15, -1.0f, 0, 0, 0, opacity);
-    }
-
-    // dokończyć
 
     return 0;
 }
 
-void resizeSC(int width,int height) {
-    glViewport(0,0,width,height);
+void resizeSC(int width, int height) {
+    glViewport(0, 0, width, height);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
 
     glMatrixMode(GL_MODELVIEW );
     glLoadIdentity();
-}
 
+    npoints = max(4, (w + h) / 3);
+    DEG2RAD = 2 * M_PI / (npoints - 1);
+}
 
 BOOL renderSC(float x, float y) {
     float norm = x && y ? sqrt(x*x+y*y):1;
@@ -227,7 +223,7 @@ BOOL CreateHGLRC(HWND hWnd) {
    return TRUE;
 }
 
-int lmouse_down = 0, dragx = 0, dragy = 0;
+int dragx = 0, dragy = 0;
 
 /// @return success (no error)
 bool drawIfMust(HWND hWnd){
@@ -254,6 +250,7 @@ bool drawIfMust(HWND hWnd){
 
 int timerAvailable = 0; // 0 - Sleep(), 1 - vsync, 2 - win32 msg
 bool renderingError = false;
+bool windowMoved = false, windowFrameVisible = false, buttonPressed = false;
 
 LRESULT CALLBACK WindowFunc(HWND hWnd,UINT msg, WPARAM wParam, LPARAM lParam) {
     PAINTSTRUCT ps;
@@ -265,31 +262,28 @@ LRESULT CALLBACK WindowFunc(HWND hWnd,UINT msg, WPARAM wParam, LPARAM lParam) {
         case WM_DESTROY:
             if(m_hrc) {
                 wglMakeCurrent(NULL, NULL);
-                wglDeleteContext(m_hrc) ;
+                wglDeleteContext(m_hrc);
             }
             KillTimer(hWnd, NULL);
             PostQuitMessage(0);
         break;
+
         case WM_TIMER:
             if(!drawIfMust(hWnd))
                 renderingError = true;
-            break;
+        break;
 
         // copied from wineyes
         case WM_LBUTTONDOWN:
-            lmouse_down = 1; 
+            buttonPressed = true;
+            windowMoved = false;
             SetCapture(hWnd);
             dragx = (short)LOWORD(lParam);
             dragy = (short)HIWORD(lParam);
-            break;
-        case WM_LBUTTONUP:
-            if (lmouse_down){
-                lmouse_down = 0;
-                ReleaseCapture();
-            }
-            break;
+        break;
+
         case WM_MOUSEMOVE:
-            if (lmouse_down){
+            if (buttonPressed) {
                 static POINT mouseloc;
                 POINT newmouseloc;
                 RECT r;
@@ -299,15 +293,56 @@ LRESULT CALLBACK WindowFunc(HWND hWnd,UINT msg, WPARAM wParam, LPARAM lParam) {
                 if ((newmouseloc.x != mouseloc.x) || (newmouseloc.y != mouseloc.y)){
                     mouseloc.x = newmouseloc.x;
                     mouseloc.y = newmouseloc.y;
-                    MoveWindow(hWnd,r.left + (short)LOWORD(lParam) - dragx,
-                        r.top + (short)HIWORD(lParam) - dragy,r.right - r.left, r.bottom - r.top,1);
+                    winx = r.left + (short)LOWORD(lParam) - dragx;
+                    winy = r.top + (short)HIWORD(lParam) - dragy;
+                    MoveWindow(hWnd, winx, winy, w, h, 1);
+                    windowMoved = true;
                 }
             }
-            break;
+        break;
         // end of "copied from wineyes"
+
+        case WM_LBUTTONUP:
+            if (buttonPressed) 
+            {
+                ReleaseCapture();
+                SetKeyData(HKEY_CURRENT_USER, "Software\\wineyes3d", REG_DWORD, "x", (LPBYTE)&winx, 4);
+                SetKeyData(HKEY_CURRENT_USER, "Software\\wineyes3d", REG_DWORD, "y", (LPBYTE)&winy, 4);
+            }
+
+            if(!windowMoved)
+            {
+                if(!windowFrameVisible)
+                    SetWindowLongPtr(hWnd, GWL_STYLE, WS_VISIBLE | WS_SIZEBOX);
+                else
+                {
+    		        SetWindowLongPtr(hWnd, GWL_STYLE, WS_VISIBLE | WS_POPUP);
+                    SetKeyData(HKEY_CURRENT_USER, "Software\\wineyes3d", REG_DWORD, "w", (LPBYTE)&w, 4);
+                    SetKeyData(HKEY_CURRENT_USER, "Software\\wineyes3d", REG_DWORD, "h", (LPBYTE)&h, 4);
+                }
+                    
+                windowFrameVisible = !windowFrameVisible;
+            }
+
+            buttonPressed = false;
+        break;
+        
+        case WM_SIZE:
+            {
+                RECT r;
+                GetWindowRect(hWnd,&r);
+                w = r.right - r.left;
+                h = r.bottom - r.top;
+                resizeSC(w, h);
+            }
+        break;
+
         case WM_QUIT:
+        {
             exit(0);
-            break;
+        }
+        break;
+
         default: 
             return DefWindowProc(hWnd,msg,wParam,lParam);
     }
@@ -316,6 +351,13 @@ LRESULT CALLBACK WindowFunc(HWND hWnd,UINT msg, WPARAM wParam, LPARAM lParam) {
 }
 
 int WINAPI _tWinMain(HINSTANCE hThisInst, HINSTANCE hPrevInst, LPSTR str,int nWinMode) {
+    GetKeyData(HKEY_CURRENT_USER, "Software\\wineyes3d", "x", (LPBYTE)&winx, 4);
+    GetKeyData(HKEY_CURRENT_USER, "Software\\wineyes3d", "y", (LPBYTE)&winy, 4);
+    GetKeyData(HKEY_CURRENT_USER, "Software\\wineyes3d", "w", (LPBYTE)&w, 4);
+    GetKeyData(HKEY_CURRENT_USER, "Software\\wineyes3d", "h", (LPBYTE)&h, 4);
+    GetKeyData(HKEY_CURRENT_USER, "Software\\wineyes3d", "opacity", (LPBYTE)&opacity, 4);
+    int SetKeyData(HKEY hRootKey, char *subKey, DWORD dwType, char *value, LPBYTE data, DWORD cbData);
+
     WNDCLASSEX wc;
     memset(&wc, 0, sizeof(wc));
     wc.cbSize = sizeof(WNDCLASSEX);
@@ -328,14 +370,15 @@ int WINAPI _tWinMain(HINSTANCE hThisInst, HINSTANCE hPrevInst, LPSTR str,int nWi
     wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = (HBRUSH)CreateSolidBrush(0x00000000);
-    wc.lpszClassName = szAppName;
+    wc.lpszClassName = "wineyes3D";
 
-    if(!RegisterClassEx(&wc)) {
+    if(!RegisterClassEx(&wc)) 
+    {
         MessageBox(NULL, _T("RegisterClassEx - failed"), _T("Error"), MB_OK | MB_ICONERROR);
         return FALSE;
     }
 
-    HWND hWnd = CreateWindowEx(WS_EX_TOOLWINDOW /* no taskbar button */, szAppName, wcWndName, 
+    HWND hWnd = CreateWindowEx(WS_EX_TOOLWINDOW /* no taskbar button */, wc.lpszClassName, wc.lpszClassName, 
         WS_VISIBLE | WS_POPUP, winx, winy, w, h, NULL, NULL, hThisInst, NULL);
 
     StayOnTop(hWnd);
@@ -346,8 +389,7 @@ int WINAPI _tWinMain(HINSTANCE hThisInst, HINSTANCE hPrevInst, LPSTR str,int nWi
         return FALSE;
     }
 
-    // compositing
-#if 1
+#if 1 // compositing
     DWM_BLURBEHIND bb = {0};
     HRGN hRgn = CreateRectRgn(0, 0, -1, -1);
     bb.dwFlags = DWM_BB_ENABLE | DWM_BB_BLURREGION;
