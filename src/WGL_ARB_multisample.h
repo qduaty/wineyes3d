@@ -168,10 +168,13 @@ extern "C" {
 #define WGL_COVERAGE_SAMPLES_NV            0x2042
 #define WGL_COLOR_SAMPLES_NV               0x20B9
 
+
 // Returns the highest quality hardware accelerated anti-aliasing pixel format.
 // If a suitable MSAA or CSAA pixel format was found it will be returned in the
 // 'pf' integer reference argument. Otherwise '0' will be returned.
-extern void ChooseBestAntiAliasingPixelFormat(int &pf);
+/// @param avoidCSAA choose only MSAA modes. This may be required on some 
+/// graphics hardware/drivers to work with Windows desktop composition.
+extern void ChooseBestAntiAliasingPixelFormat(int &pf, bool avoidCSAA = false);
 
 // Returns a hardware accelerated anti-aliasing (MSAA or CSAA) pixel format
 // that supports the specified samples per pixel. If a matching MSAA or CSAA

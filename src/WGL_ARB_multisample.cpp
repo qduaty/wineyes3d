@@ -346,7 +346,7 @@ namespace
     }
 }
 
-void ChooseBestAntiAliasingPixelFormat(int &pf)
+void ChooseBestAntiAliasingPixelFormat(int &pf, bool avoidCSAA)
 {
     pf = 0;
     
@@ -356,7 +356,7 @@ void ChooseBestAntiAliasingPixelFormat(int &pf)
         return;
     }
     
-    if (ExtensionSupported("GL_NV_multisample_coverage") &&
+    if (!avoidCSAA && ExtensionSupported("GL_NV_multisample_coverage") &&
         ExtensionSupported("WGL_NV_multisample_coverage"))
     {
         ChooseBestCSAAPixelFormat(pf);
