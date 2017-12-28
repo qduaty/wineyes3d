@@ -123,12 +123,18 @@ BOOL renderSC(float x, float y) {
     y/=norm;
     float x1 = x - 0.25;
     float x2 = x + 0.25;
-    x1 = max(-0.5, min(0.5, x1));
-    x2 = max(-0.5, min(0.5, x2));
-    y = max(-0.5, min(0.5, y));
+//    x1 = max(-0.5, min(0.5, x1));
+//    x2 = max(-0.5, min(0.5, x2));
+//    y = max(-0.5, min(0.5, y));
     x1 *= -radiusX;
     x2 *= -radiusX;
     y *= -radiusY;
+
+    x1 -= 0.075;
+    x2 += 0.075;
+    x1 *= 0.6;
+    x2 *= 0.6;
+    y *= 0.6;
 
     auto renderEllipse = [](float size, float xoffset, float x, float y, int which, int npoints){
         float z = which / -2.0;
